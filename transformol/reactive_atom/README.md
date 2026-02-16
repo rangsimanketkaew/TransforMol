@@ -6,7 +6,7 @@
 
 - MPNN, GraphSAGE, GAT models
 - Energy head (atomwise decomposition)
-- Localization head (per-orbital logits → softmax over atoms)
+- Localization head (per-orbital logits --> softmax over atoms)
 - Loss:
   ```
   Loss = Energy MSE + optional force loss + -beta * J_sur + orthogonality regularizer
