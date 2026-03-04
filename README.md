@@ -1,17 +1,17 @@
 # TransforMol
 
-*TransforMol* is an LLM-powered computational chemistry assistant that routes natural-language chemistry queries to specialised graph transformer and MLP models. It is built on LangChain and exposes 4 quantum chemistry-based ML prediction tools as a ReAct agent.
+*TransforMol* is an LLM quantum-ML chemistry assistant that routes natural-language queries to specialized graph transformer and MLP models. It is built on LangChain and uses 4 quantum chemistry-based ML prediction tools as a ReAct agent.
 
 ## Quantum Chemistry ML Tasks
 
 | # | Task | Model | Input | Output |
 |---|------|-------|-------|--------|
-| 1 | **Solvation Gibbs free energy** | R2S2-GAT | solute SMILES + solvent | ΔG (kcal/mol) |
-| 2 | **Reaction prediction** | MPNN + CVAE | reactant SMILES | TS & product feature norms, reactive atom ranking |
-| 3 | **Reactive atom prediction** | GNN + Pipek-Mezey | SMILES (+ optional XYZ) | Per-atom reactivity scores and ranking |
-| 4 | **Solute structure in implicit solvent** | MoleculeMLP | SMILES or XYZ + solvent | Per-atom displacement vectors (Å) and RMSD |
+| 1 | **Solvation Gibbs free energy** ([code](transformol/solv_deltaG)) | R2S2-GAT | solute SMILES + solvent | ΔG (kcal/mol) |
+| 2 | **Reaction prediction** ([code](transformol/predict_reaction)) | MPNN + CVAE | reactant SMILES | TS & product feature norms, reactive atom ranking |
+| 3 | **Reactive atom prediction** ([code](transformol/reactive_atom)) | GNN + Pipek-Mezey | SMILES (+ optional XYZ) | Per-atom reactivity scores and ranking |
+| 4 | **Solute structure in implicit solvent** ([code](transformol/solv_strc)) | MoleculeMLP | SMILES or XYZ + solvent | Per-atom displacement vectors (Å) and RMSD |
 
-> *R2S2-GAT is a specialized GAT architecture to couple the interaction between solute and solvents.*
+> *R2S2-GAT is a specialized GAT architecture built with PyTorch Geometric, designed to couple the interaction between solute and solvents.*
 
 ## Install
 
