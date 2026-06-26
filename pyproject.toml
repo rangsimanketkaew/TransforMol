@@ -35,7 +35,7 @@ dependencies = [
     #   -f https://data.pyg.org/whl/torch-<version>+<cu>.html
     "seaborn",
     "nglview",
-    "pyemma",
+    # "pyemma",
     "matplotlib",
     "mdtraj",
     "scipy",
