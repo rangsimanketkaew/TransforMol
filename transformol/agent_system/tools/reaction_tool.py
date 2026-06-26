@@ -14,13 +14,13 @@ import json
 import traceback
 from pathlib import Path
 
-_TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
-_PREDICT_REACTION_DIR = str(_TRANSFORMOL_ROOT / "predict_reaction")
+TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
+PREDICT_REACTION_DIR = str(TRANSFORMOL_ROOT / "predict_reaction")
 
 
 def _ensure_path():
-    if _PREDICT_REACTION_DIR not in sys.path:
-        sys.path.insert(0, _PREDICT_REACTION_DIR)
+    if PREDICT_REACTION_DIR not in sys.path:
+        sys.path.insert(0, PREDICT_REACTION_DIR)
 
 
 def predict_reaction(
@@ -28,14 +28,15 @@ def predict_reaction(
     config,
     num_samples=None,
 ):
-    """Predict TS and product structures from *reactant_smiles*."""
+    """Predict TS and product structures from *reactant_smiles*"""
+
     _ensure_path()
     if num_samples is None:
         num_samples = config.reaction_num_samples
 
     try:
         import torch
-        from model import ReactionGenerativeModel  # type: ignore[import]
+        from model import ReactionGenerativeModel 
     except ImportError as exc:
         return f"[Reaction] Import error: {exc}"
 
@@ -92,7 +93,8 @@ def predict_reaction(
 
 
 def build_reaction_tool(config):
-    """Return a LangChain Tool wrapping :func:`predict_reaction`."""
+    """Return a LangChain Tool wrapping"""
+
     from langchain_core.tools import Tool
 
     def _run(query):

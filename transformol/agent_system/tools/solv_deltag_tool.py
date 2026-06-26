@@ -14,13 +14,13 @@ import json
 import traceback
 from pathlib import Path
 
-_TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
-_SOLV_DELTAG_DIR = str(_TRANSFORMOL_ROOT / "solv_deltaG")
+TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
+SOLV_DELTAG_DIR = str(TRANSFORMOL_ROOT / "solv_deltaG")
 
 
 def _ensure_path():
-    if _SOLV_DELTAG_DIR not in sys.path:
-        sys.path.insert(0, _SOLV_DELTAG_DIR)
+    if SOLV_DELTAG_DIR not in sys.path:
+        sys.path.insert(0, SOLV_DELTAG_DIR)
 
 
 def predict_solvation_free_energy(
@@ -28,13 +28,14 @@ def predict_solvation_free_energy(
     solvent,
     config,
 ):
-    """Predict solvation Gibbs free energy (kcal/mol) for *solute_smiles* in *solvent*."""
+    """Predict solvation Gibbs free energy (kcal/mol) for *solute_smiles* in *solvent*"""
+
     _ensure_path()
 
     try:
         import torch
-        from r2s2_train import R2S2GATModel  # type: ignore[import]
-        from r2s2_dataset import smiles_to_graph  # type: ignore[import]
+        from r2s2_train import R2S2GATModel
+        from r2s2_dataset import smiles_to_graph
     except ImportError as exc:
         return f"[SolvationGibbs free energy] Import error: {exc}"
 
@@ -65,6 +66,7 @@ def predict_solvation_free_energy(
     model.load_state_dict(state.get("model_state_dict") or state.get("model_state") or state)
 
     model.eval()
+
     try:
         with torch.no_grad():
             preds, _ = model([sol.to(device)], [solv.to(device)])
@@ -81,7 +83,8 @@ def predict_solvation_free_energy(
 
 
 def build_solv_deltag_tool(config):
-    """Return a LangChain Tool wrapping :func:`predict_solvation_free_energy`."""
+    """Return a LangChain Tool wrapping"""
+
     from langchain_core.tools import Tool
 
     def _run(query):

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import numpy as np
 
-_TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
-_REACTIVE_ATOM_DIR = str(_TRANSFORMOL_ROOT / "reactive_atom")
+TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
+_REACTIVE_ATOM_DIR = str(TRANSFORMOL_ROOT / "reactive_atom")
 
 
 def _ensure_path():
@@ -31,15 +31,16 @@ def predict_reactive_atoms(
     xyz_text=None,
     top_k=5,
 ):
-    """Rank atoms in *smiles* by reactivity using the GNN localization model."""
+    """Rank atoms in *smiles* by reactivity using the GNN localization model"""
+
     _ensure_path()
 
     try:
         import torch
         from rdkit import Chem
         from rdkit.Chem import AllChem
-        from model import MLWithLocalization, predict  # type: ignore[import]
-        from data import xyz_to_data  # type: ignore[import]
+        from model import MLWithLocalization, predict
+        from data import xyz_to_data
     except ImportError as exc:
         return f"[ReactiveAtom] Import error: {exc}"
 
@@ -108,7 +109,8 @@ def predict_reactive_atoms(
 
 
 def build_reactive_atom_tool(config):
-    """Return a LangChain Tool wrapping :func:`predict_reactive_atoms`."""
+    """Return a LangChain Tool wrapping"""
+    
     from langchain_core.tools import Tool
 
     def _run(query):

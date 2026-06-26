@@ -17,13 +17,13 @@ from pathlib import Path
 
 import numpy as np
 
-_TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
-_SOLV_STRC_DIR = str(_TRANSFORMOL_ROOT / "solv_strc")
+TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent.parent
+SOLV_STRC_DIR = str(TRANSFORMOL_ROOT / "solv_strc")
 
 
 def _ensure_path():
-    if _SOLV_STRC_DIR not in sys.path:
-        sys.path.insert(0, _SOLV_STRC_DIR)
+    if SOLV_STRC_DIR not in sys.path:
+        sys.path.insert(0, SOLV_STRC_DIR)
 
 
 def predict_solute_structure(
@@ -33,14 +33,15 @@ def predict_solute_structure(
     solvent="water",
     dielectric=None,
 ):
-    """Predict atomic displacements when *smiles* is placed in *solvent*."""
+    """Predict atomic displacements when *smiles* is placed in *solvent*"""
+
     _ensure_path()
 
     try:
         import torch
-        from py3_train import MoleculeMLP  # type: ignore[import]
-        from py4_visualize_prediction import predict_geometry  # type: ignore[import]
-        from py2_create_feature_set import calculate_mol_features  # type: ignore[import]
+        from py3_train import MoleculeMLP 
+        from py4_visualize_prediction import predict_geometry 
+        from py2_create_feature_set import calculate_mol_features 
     except ImportError as exc:
         return f"[SolvStrc] Import error: {exc}"
 
@@ -127,7 +128,8 @@ def predict_solute_structure(
 
 
 def build_solv_strc_tool(config):
-    """Return a LangChain Tool wrapping :func:`predict_solute_structure`."""
+    """Return a LangChain Tool wrapping"""
+    
     from langchain_core.tools import Tool
 
     def _run(query):

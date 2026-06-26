@@ -10,7 +10,7 @@ from pathlib import Path
 
 import numpy as np
 
-_TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent
+TRANSFORMOL_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _ensure_module_on_path(module_dir):
@@ -123,7 +123,7 @@ def xyz_text_to_arrays(xyz_text):
 
 def smiles_to_pyg_graph(smiles, atom_dim=30, bond_dim=6):
     """Convert a SMILES string to a PyG Data object (delegates to r2s2_dataset)."""
-    solv_dir = str(_TRANSFORMOL_ROOT / "solv_deltaG")
+    solv_dir = str(TRANSFORMOL_ROOT / "solv_deltaG")
     _ensure_module_on_path(solv_dir)
-    from r2s2_dataset import smiles_to_graph  # type: ignore[import]
+    from r2s2_dataset import smiles_to_graph
     return smiles_to_graph(smiles, atom_dim=atom_dim, bond_dim=bond_dim)
