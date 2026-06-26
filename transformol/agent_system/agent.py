@@ -5,6 +5,14 @@ Updates:
     13.02.2026  Initial implementation [Rangsiman Ketkaew]
 """
 
+import os
+import asyncio
+import re
+import time
+from typing import Any
+from langchain_core.language_models.chat_models import SimpleChatModel
+from langchain_core.messages import AIMessage
+
 
 AGENT_PROMPT = """You are **TransforMol**, an expert computational chemistry assistant!
 You have access to 4 ML tools:
@@ -14,13 +22,11 @@ You have access to 4 ML tools:
 3. predict_reactive_atoms         - reactive atom ranking via GNN + Pipek-Mezey
 4. predict_solute_structure       - solute geometry in implicit solvent via MLP
 
-Some guidelines
----------------
-- Use the correct tool for each task; pass inputs as JSON as described
+Notes
+-----
 - Solvent names (e.g. "water", "DMSO") and SMILES are both accepted
-- Explain results in plain language
-- If a tool returns a "demo mode" message, inform the user that a trained
-  checkpoint is needed and explain how to set it via config
+- If a tool returns a "demo mode" message, it means that no trained
+  checkpoint is available and you need to set it via config
 """
 
 
@@ -49,16 +55,7 @@ class TransforMolAgentWrapper:
 
 
 def build_agent(config):
-    """Build and return a LangChain ReAct AgentExecutor wrapper.
-
-    Parameters
-    ----------
-    config : TransforMolAgentConfig
-
-    Returns
-    -------
-    TransforMolAgentWrapper
-    """
+    """Build and return a LangChain ReAct TransforMolAgentWrapper"""
 
     from langchain.agents import create_agent
     from .tools.solv_deltag_tool import build_solv_deltag_tool
@@ -83,12 +80,9 @@ def build_agent(config):
 
     return TransforMolAgentWrapper(graph, tools)
 
-
-from langchain_core.language_models.chat_models import SimpleChatModel
-from langchain_core.messages import AIMessage
-
 class MockChatModel(SimpleChatModel):
     """This is just a mock chat model for test"""
+
     def _call(self, messages, stop=None, run_manager=None, **kwargs):
         user_query = ""
         has_tool_run = False
@@ -146,26 +140,102 @@ class MockChatModel(SimpleChatModel):
     def _llm_type(self) -> str:
         return "mock"
 
+class RateLimitedChatModel:
+    def __init__(self, llm, delay=2.0):
+        self.llm = llm
+        self.delay = delay
 
-def _build_llm(config):
-    import os
-    if os.getenv("MOCK_LLM") == "1":
+    def invoke(self, messages, stop=None, **kwargs):
+        time.sleep(self.delay)
+        
+        max_attempts = 5
+        backoff = 5.0
+        for attempt in range(max_attempts):
+            try:
+                return self.llm.invoke(messages, stop=stop, **kwargs)
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    raise e
+                
+                err_str = str(e)
+                if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
+                    sleep_time = backoff
+
+                    match = re.search(r"retry in (\d+(?:\.\d+)?)s", err_str)
+                    if match:
+                        sleep_time = float(match.group(1)) + 1.0
+                    elif "RetryInfo" in err_str:
+                        match_delay = re.search(r"retryDelay': '(\d+)s", err_str)
+                        if match_delay:
+                            sleep_time = float(match_delay.group(1)) + 1.0
+                    
+                    print(f"\n[RateLimit] Hitting rate limit/unavailable. Sleeping for {sleep_time:.2f}s before retry (attempt {attempt+1}/{max_attempts})...")
+                    time.sleep(sleep_time)
+                    backoff *= 2.0
+                else:
+                    raise e
+
+    async def ainvoke(self, messages, stop=None, **kwargs):
+        
+        await asyncio.sleep(self.delay)
+        
+        max_attempts = 5
+        backoff = 5.0
+        for attempt in range(max_attempts):
+            try:
+                return await self.llm.ainvoke(messages, stop=stop, **kwargs)
+            except Exception as e:
+                if attempt == max_attempts - 1:
+                    raise e
+                
+                err_str = str(e)
+                if "RESOURCE_EXHAUSTED" in err_str or "429" in err_str or "503" in err_str or "UNAVAILABLE" in err_str:
+                    sleep_time = backoff
+                    match = re.search(r"retry in (\d+(?:\.\d+)?)s", err_str)
+                    if match:
+                        sleep_time = float(match.group(1)) + 1.0
+                    elif "RetryInfo" in err_str:
+                        match_delay = re.search(r"retryDelay': '(\d+)s", err_str)
+                        if match_delay:
+                            sleep_time = float(match_delay.group(1)) + 1.0
+                    
+                    print(f"\n[RateLimit] Hitting rate limit/unavailable. " \
+                          f"Sleeping for {sleep_time:.2f}s before retry (attempt {attempt+1}/{max_attempts})...")
+                    
+                    await asyncio.sleep(sleep_time)
+                    backoff *= 2.0
+                else:
+                    raise e
+
+    def bind_tools(self, tools, **kwargs):
+        if hasattr(self.llm, "bind_tools"):
+            self.llm = self.llm.bind_tools(tools, **kwargs)
+        return self
+
+    def __getattr__(self, name):
+        return getattr(self.llm, name)
+
+
+def _build_llm(config, mock_mode=False):
+
+    if mock_mode:
         return MockChatModel()
 
     if config.llm_provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(model=config.llm_model, temperature=config.temperature, max_tokens=4096)
+        llm = ChatAnthropic(model=config.llm_model, temperature=config.temperature, max_tokens=4096)
     elif config.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=config.llm_model, temperature=config.temperature)
+        llm = ChatOpenAI(model=config.llm_model, temperature=config.temperature)
     elif config.llm_provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=config.llm_model, temperature=config.temperature)
+        llm = ChatGoogleGenerativeAI(model=config.llm_model, temperature=config.temperature)
     else:
         raise ValueError(
-            f"Unknown llm_provider '{config.llm_provider}'. "
-            "Choose 'anthropic', 'openai', or 'google'."
+            f"Unknown llm_provider \"{config.llm_provider}\". Choose \"anthropic\", \"openai\", or \"google\"."
         )
+
+    return RateLimitedChatModel(llm=llm, delay=2.0)
 
 
 def _offline_react_prompt():
@@ -190,7 +260,7 @@ def _offline_react_prompt():
 
 
 def run_agent(query, config):
-    """Build the agent and run a single query. Returns the final answer string"""
+    """Build the agent and run a single query and return the final answer string"""
 
     result = build_agent(config).invoke({"input": query})
     return result.get("output", str(result))
