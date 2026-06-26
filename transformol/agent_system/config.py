@@ -53,7 +53,8 @@ class TransforMolAgentConfig:
                 "anthropic": "claude-sonnet-4-5",
                 "openai": "gpt-4o",
                 # "google": "gemini-2.5-flash",
-                "google": "gemini-flash-latest",
+                "google": "gemini-3.1-flash-lite",
+                # "google": "gemini-flash-latest",
             }
             if self.llm_provider not in defaults:
                 raise ValueError(
