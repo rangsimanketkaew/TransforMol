@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "TransforMol"
+version = "1.0.0"
+description = "A Generative Transformer Model + LLM Agent as an Expert for Molecules"
+authors = [{ name = "Rangsiman Ketkaew", email = "rketkaew@ethz.ch" }]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "ipython",
+    "numpy",
+    "rdkit",
+    "torch",
+    "ase",
+    "sella",
+    "pandas",
+    "scikit-learn",
+    "openmmforcefields",
+    "certifi",
+    "h5py",
+    "numba",
+    "torch-geometric",
+    # torch-cluster, torch-scatter, torch-sparse must be installed separately
+    # after torch, using the matching wheel index:
+    # pip install torch-scatter torch-sparse torch-cluster \
+    #   -f https://data.pyg.org/whl/torch-<version>+<cu>.html
+    "seaborn",
+    "nglview",
+    "pyemma",
+    "matplotlib",
+    "mdtraj",
+    "scipy",
+    "tqdm",
+    "ipywidgets",
+    "py3Dmol",
+    "langchain",
+    "langchain-core",
+    "langchain-anthropic",
+    "langchain-openai",
+    "langchain-google-genai"
+]
+
+[project.optional-dependencies]
+# These packages are only available via conda-forge, not PyPI.
+# Install them with: conda install -c conda-forge openff-toolkit openmoltools openmm-torch=1.4
+conda-only = [
+    # openff-toolkit
+    # openmoltools
+    # openmm-torch==1.4
+]
+
+[project.urls]
+Homepage = "https://github.com/rangsimanketkaew/TransforMol"
+
+[tool.setuptools.packages.find]
+where = ["."]
