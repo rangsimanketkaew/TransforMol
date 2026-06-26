@@ -21,8 +21,9 @@ _REACTIVE_ATOM_DIR = str(TRANSFORMOL_ROOT / "reactive_atom")
 
 
 def _ensure_path():
-    if _REACTIVE_ATOM_DIR not in sys.path:
-        sys.path.insert(0, _REACTIVE_ATOM_DIR)
+    if _REACTIVE_ATOM_DIR in sys.path:
+        sys.path.remove(_REACTIVE_ATOM_DIR)
+    sys.path.insert(0, _REACTIVE_ATOM_DIR)
 
 
 def predict_reactive_atoms(
@@ -33,7 +34,21 @@ def predict_reactive_atoms(
 ):
     """Rank atoms in *smiles* by reactivity using the GNN localization model"""
 
+    if isinstance(smiles, str) and smiles.strip().startswith("{"):
+        try:
+            data = json.loads(smiles)
+            if "smiles" in data:
+                smiles = data["smiles"]
+            if "top_k" in data:
+                top_k = data["top_k"]
+            if "xyz_text" in data:
+                xyz_text = data["xyz_text"]
+        except Exception:
+            pass
+
     _ensure_path()
+    for mod in ["model", "data", "loss"]:
+        sys.modules.pop(mod, None)
 
     try:
         import torch
@@ -109,31 +124,22 @@ def predict_reactive_atoms(
 
 
 def build_reactive_atom_tool(config):
-    """Return a LangChain Tool wrapping"""
+    """Return a LangChain StructuredTool wrapping"""
     
-    from langchain_core.tools import Tool
+    from langchain_core.tools import StructuredTool
 
-    def _run(query):
-        query = query.strip()
-        try:
-            params = json.loads(query)
-        except json.JSONDecodeError:
-            params = {"smiles": query.split()[0] if query else ""}
-        smiles = params.get("smiles", "").strip()
-        if not smiles:
-            return "[ReactiveAtom] 'smiles' is required."
+    def _run(smiles: str, top_k: int = 5, xyz_text: str = None) -> str:
         return predict_reactive_atoms(
             smiles, config,
-            xyz_text=params.get("xyz_text"),
-            top_k=int(params.get("top_k", 5)),
+            xyz_text=xyz_text,
+            top_k=top_k,
         )
 
-    return Tool(
-        name="predict_reactive_atoms",
+    return StructuredTool.from_function(
         func=_run,
+        name="predict_reactive_atoms",
         description=(
             "Ranks atoms by reactivity for transition-state search using GNN + PM localization. "
-            "Input JSON: {\"smiles\": \"C1CCCCC1\", \"top_k\": 5}. "
-            "Optional 'xyz_text' for 3-D geometry; 3-D coords are auto-generated from SMILES otherwise."
+            "Input arguments: 'smiles' (string, required), 'top_k' (integer, optional, default 5), 'xyz_text' (string, optional)."
         ),
     )

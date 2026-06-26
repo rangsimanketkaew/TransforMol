@@ -19,8 +19,9 @@ SOLV_DELTAG_DIR = str(TRANSFORMOL_ROOT / "solv_deltaG")
 
 
 def _ensure_path():
-    if SOLV_DELTAG_DIR not in sys.path:
-        sys.path.insert(0, SOLV_DELTAG_DIR)
+    if SOLV_DELTAG_DIR in sys.path:
+        sys.path.remove(SOLV_DELTAG_DIR)
+    sys.path.insert(0, SOLV_DELTAG_DIR)
 
 
 def predict_solvation_free_energy(
@@ -29,6 +30,16 @@ def predict_solvation_free_energy(
     config,
 ):
     """Predict solvation Gibbs free energy (kcal/mol) for *solute_smiles* in *solvent*"""
+
+    if isinstance(solute_smiles, str) and solute_smiles.strip().startswith("{"):
+        try:
+            data = json.loads(solute_smiles)
+            if "solute_smiles" in data:
+                solute_smiles = data["solute_smiles"]
+            if "solvent" in data:
+                solvent = data["solvent"]
+        except Exception:
+            pass
 
     _ensure_path()
 
@@ -83,29 +94,18 @@ def predict_solvation_free_energy(
 
 
 def build_solv_deltag_tool(config):
-    """Return a LangChain Tool wrapping"""
+    """Return a LangChain StructuredTool wrapping"""
 
-    from langchain_core.tools import Tool
+    from langchain_core.tools import StructuredTool
 
-    def _run(query):
-        query = query.strip()
-        try:
-            params = json.loads(query)
-        except json.JSONDecodeError:
-            parts = query.split()
-            params = {"solute_smiles": parts[0] if parts else "", "solvent": parts[1] if len(parts) > 1 else "water"}
-        solute_smiles = params.get("solute_smiles", "").strip()
-        solvent = params.get("solvent", "water").strip()
-        if not solute_smiles:
-            return "[SolvationGibbs free energy] 'solute_smiles' is required."
+    def _run(solute_smiles: str, solvent: str = "water") -> str:
         return predict_solvation_free_energy(solute_smiles, solvent, config)
 
-    return Tool(
-        name="predict_solvation_free_energy",
+    return StructuredTool.from_function(
         func=_run,
+        name="predict_solvation_free_energy",
         description=(
             "Predicts solvation Gibbs free energy (Gibbs free energy, kcal/mol) using R2S2-GAT. "
-            "Input JSON: {\"solute_smiles\": \"CC\", \"solvent\": \"water\"}. "
-            "Solvent accepts common names or SMILES."
+            "Input arguments: 'solute_smiles' (string, required), 'solvent' (string, optional, default 'water')."
         ),
     )

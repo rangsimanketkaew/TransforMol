@@ -19,8 +19,9 @@ PREDICT_REACTION_DIR = str(TRANSFORMOL_ROOT / "predict_reaction")
 
 
 def _ensure_path():
-    if PREDICT_REACTION_DIR not in sys.path:
-        sys.path.insert(0, PREDICT_REACTION_DIR)
+    if PREDICT_REACTION_DIR in sys.path:
+        sys.path.remove(PREDICT_REACTION_DIR)
+    sys.path.insert(0, PREDICT_REACTION_DIR)
 
 
 def predict_reaction(
@@ -30,7 +31,20 @@ def predict_reaction(
 ):
     """Predict TS and product structures from *reactant_smiles*"""
 
+    if isinstance(reactant_smiles, str) and reactant_smiles.strip().startswith("{"):
+        try:
+            data = json.loads(reactant_smiles)
+            if "smiles" in data:
+                reactant_smiles = data["smiles"]
+            if "num_samples" in data:
+                num_samples = data["num_samples"]
+        except Exception:
+            pass
+
     _ensure_path()
+    for mod in ["model", "data_loader"]:
+        sys.modules.pop(mod, None)
+
     if num_samples is None:
         num_samples = config.reaction_num_samples
 
@@ -93,26 +107,18 @@ def predict_reaction(
 
 
 def build_reaction_tool(config):
-    """Return a LangChain Tool wrapping"""
+    """Return a LangChain StructuredTool wrapping"""
 
-    from langchain_core.tools import Tool
+    from langchain_core.tools import StructuredTool
 
-    def _run(query):
-        query = query.strip()
-        try:
-            params = json.loads(query)
-        except json.JSONDecodeError:
-            params = {"smiles": query.split()[0] if query else ""}
-        smiles = params.get("smiles", "").strip()
-        if not smiles:
-            return "[Reaction] 'smiles' is required."
-        return predict_reaction(smiles, config, num_samples=params.get("num_samples"))
+    def _run(smiles: str, num_samples: int = None) -> str:
+        return predict_reaction(smiles, config, num_samples=num_samples)
 
-    return Tool(
-        name="predict_reaction",
+    return StructuredTool.from_function(
         func=_run,
+        name="predict_reaction",
         description=(
             "Predicts TS and product structures for a reactant using MPNN+CVAE. "
-            "Input JSON: {\"smiles\": \"CCO\", \"num_samples\": 3}."
+            "Input arguments: 'smiles' (string, required reactant smiles), 'num_samples' (integer, optional, default from config)."
         ),
     )

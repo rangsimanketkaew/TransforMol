@@ -22,8 +22,9 @@ SOLV_STRC_DIR = str(TRANSFORMOL_ROOT / "solv_strc")
 
 
 def _ensure_path():
-    if SOLV_STRC_DIR not in sys.path:
-        sys.path.insert(0, SOLV_STRC_DIR)
+    if SOLV_STRC_DIR in sys.path:
+        sys.path.remove(SOLV_STRC_DIR)
+    sys.path.insert(0, SOLV_STRC_DIR)
 
 
 def predict_solute_structure(
@@ -34,6 +35,20 @@ def predict_solute_structure(
     dielectric=None,
 ):
     """Predict atomic displacements when *smiles* is placed in *solvent*"""
+
+    if isinstance(smiles, str) and smiles.strip().startswith("{"):
+        try:
+            data = json.loads(smiles)
+            if "smiles" in data:
+                smiles = data["smiles"]
+            if "solvent" in data:
+                solvent = data["solvent"]
+            if "xyz_text" in data:
+                xyz_text = data["xyz_text"]
+            if "dielectric" in data:
+                dielectric = data["dielectric"]
+        except Exception:
+            pass
 
     _ensure_path()
 
@@ -128,31 +143,20 @@ def predict_solute_structure(
 
 
 def build_solv_strc_tool(config):
-    """Return a LangChain Tool wrapping"""
+    """Return a LangChain StructuredTool wrapping"""
     
-    from langchain_core.tools import Tool
+    from langchain_core.tools import StructuredTool
 
-    def _run(query):
-        query = query.strip()
-        try:
-            params = json.loads(query)
-        except json.JSONDecodeError:
-            parts = query.split()
-            params = {"smiles": parts[0] if parts else None, "solvent": parts[1] if len(parts) > 1 else "water"}
-        smiles = (params.get("smiles") or "").strip() or None
-        xyz_text = params.get("xyz_text")
-        solvent = params.get("solvent", "water").strip()
-        dielectric = float(params["dielectric"]) if "dielectric" in params else None
+    def _run(smiles: str = None, xyz_text: str = None, solvent: str = "water", dielectric: float = None) -> str:
         if not smiles and not xyz_text:
             return "[SolvStrc] Provide 'smiles' or 'xyz_text'."
         return predict_solute_structure(smiles, config, xyz_text=xyz_text, solvent=solvent, dielectric=dielectric)
 
-    return Tool(
-        name="predict_solute_structure",
+    return StructuredTool.from_function(
         func=_run,
+        name="predict_solute_structure",
         description=(
             "Predicts geometry of a solute in implicit solvent using MoleculeMLP. "
-            "Input JSON: {\"smiles\": \"CCO\", \"solvent\": \"water\"}. "
-            "Optional: 'xyz_text' (XYZ block string), 'dielectric' (float)."
+            "Input arguments: 'smiles' (string, optional), 'xyz_text' (string, optional), 'solvent' (string, optional, default 'water'), 'dielectric' (float, optional)."
         ),
     )
